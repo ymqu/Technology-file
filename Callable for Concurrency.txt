@@ -1,0 +1,128 @@
+High Concurrency:
+	multithreading is ability of cpu to execute multi processes or threads concurrently, supported by OS. If multiple computations are happening at the same time may cause cpu, memory, IO pressure. 
+Simultaneous executions may cause system or application corruption. and one of corruptions may cause related function disability in other applcation.
+the solutions are : memory, async, concurrency, distribution. 
+
+
+Example: In distribute applications, there are UserInfo API and MoneyInfo API provided.
+
+1. how to invoke remote API: HTTPCLIENT or URLCONNECTION
+   but in spring framework provide:  
+        RestTemplate. getForEntity: invoke http request API, RestTemplate based on HttpClient or UrlConnection.
+
+
+2. how to merge result to Json after invoke; 
+   FASTJson: add to your maven for merge multiple return values from different APIs;
+	JSONObject userInfo  = JSONObject.parseObject(v1)
+	JSONObject moneyInfo  = JSONObject.parseObject(v2)
+	
+	JSONObject result = new JSONObject();
+	result.put(userInfo);
+	result.put(moneyInfo);
+	return result;
+
+the process: invoke API is parallel. time consume.
+
+3. performance improvements
+   1): Multi Threads
+    a. without return, bad solution
+	new Thread(new Runnable(){
+		@override
+	 	public void run(){
+	
+		}
+
+	}).start(); 
+	
+     b. With return value, must use Callable and FuturnTask
+	Callable<JSONObject> queryUserInfo =new Callable<JsonObject>(){
+		@override
+		public JSONObject call() throw Exception{
+			String v1 =remoteService.getUserInf(userId);
+			JSONObject userInfo = JSONObject.parseObject(v1);
+			return UserInfo;
+		}
+	}
+
+	Callable<JSONObject> queryMoneyInfo =new Callable<JsonObject>(){
+		@override
+		public JSONObject call() throw Exception{
+			String v1 =remoteService.getMoneyInfo(userId);
+			JSONObject moneyInfo = JSONObject.parseObject(v1);
+			return moneyInfo;
+		}
+	}
+
+ 	FutureTask<JSONObject> queryUserInfoTask = new FutureTask<JSONObject>(queryUserInfo){
+		new Thread(queryUserInfoTask).start();
+	}
+	 FutureTask<JSONObject> queryMoneyInfoTask = new FutureTask<JSONObject>(queryMoneyInfo){
+	
+		new Thread(queryMoneyInfoTask).start();
+	}
+
+	JSONObject result = new JSONObject();
+	result.put(queryUserInfoTask.get());  // will block wait for result, but Async, main thread will go execute queryMoneyInfoTask.
+	result.put(queryMoneyInfoTask.get());
+}
+
+ 2).improvement performance Step 2: use Thread Pool; Thread numbers is based on cpu core #
+
+	ExecutorService tasks = Executors.newFixedThreadPool(2);
+	tasks.submit(queryUserInfoTask); //replace new Thread(queryUserInfoTask).start();
+	tasks.submit(queryMoneyInfoTask); 
+
+ 3) MyFutureTask:  deep understanding FutureTask
+
+   QUFutureTask.class: synchronized, notifyAll(); wait();
+
+	public class QuFutureTask implements Runnable,Futurn<V>{
+
+	 	callable<V> callable;  //for business services
+	 	V result = null;  //for execute result;
+
+		//constructor
+		public QUFuturnTask(Callable<V> callable){ this.callable =callable;}
+	  	
+		@override
+	  	public void run(){
+		
+			result =callable.call();  // http call, return result;
+			synchronized(this){ this.notifyAll();}	
+		}
+
+	 @override
+	  public V get() throws Exception(){
+
+		if(null != result){ return result;}
+		else{
+		   synchronized(this){ this.wait();
+		}	
+
+		return result;
+
+	}
+
+4. improve step 4 for controller:   release connection with tomcat after build connect with http.
+	Tomcat --- server.xml ----maxthreads= 150; create 150 servlet threads when initiate tomcat, max is 700
+	
+	public Callable<String> getUserInfo(String userId){
+	
+	 	Callable<String> callable = new Callable<String>(){
+	
+	  		 @Override
+	   		public String call() throws Exception{
+				String result = userService.getUserInfo(userId).toString();
+				return result;
+	 		}};
+			return callable;
+
+	}
+
+
+
+
+
+
+	
+
