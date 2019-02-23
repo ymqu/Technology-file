@@ -1,0 +1,60 @@
+MySQL optimization
+
+1. Index: is a data structure that improves the speed of operations in the table.In MySQL, index is BTree. 
+	Briefly mention: difference of B+Tree and BTree: addtional level added to bottom linked to leaves;  each node contains only keys, but BTree contains key-value pairs.
+
+   Primary key index: not null and unique;
+   Unique key index: can be null;
+   Composite index: allow up to 16 columns to be index.
+   Covering Index: all columns exist in the index. MySQL returns the data from the index without accessing the table rows.
+
+2. Normalization: help resource optimization.
+   1NF: ensure that value in each column of table are atomic. unique and no sets of values.
+   2NF: cut down the superfluous data in table, put it in the new table and by establishing relations among them.
+   3NF: the requires all columns depend directly on the primary key. Without transitive dependency.
+
+
+3. Query optimization, index optimization and schema optimization.
+   Query optimization:
+	a. slow query: use join tables than IN another table avoid redundant searching.
+        b. slow query: retrieving more data than you need; if only top 10 need, do not fetch all and LIMIT.
+	c. use abnormolization to reduce table relations and improve search efficiency.
+
+4. Schema optimization: 
+    Data type:  number(smallInt, int, bigint)  > date(datetime)  > char (varchar)
+
+5. Index Optimization
+   index: store memory address. make search efficency but space comsume. The reason use Btree not Hash: worse performance on compare operation
+   engine:
+        innodb: file.frm： form; file.myi: index; file.myd: data
+        myisam: file.frm: form; file.ibd: data+index: clusterindex.
+
+   show variable like "%datadir%": data store dir.
+   
+6. excution plan: index scope.
+   explain + SQL Statement
+ 	select a.data, a.shopcode, a.add_car, b.shop_type 
+	from  a, b 
+	where a.date>=''" and a.date <=""
+	order by  a.shopcode, a.shop_type, a.add_car, a.date;
+
+     we will create index on "order by list".........
+
+     after explian select statement:
+
+	select type       table        possible key           key,            key_len         rows    extra
+
+	by  possible key, key and key_len to analize if index disable.
+	key_len calculate: 
+ 		1. character length: utf8: 3 bytes
+		2. varchar(+2), char: varchar record store address.
+		3. null(+1)
+
+	compare searching put the last. for example WHERE "date<" and "date>" , when create index "date" must put on the last one.
+
+	After index created: first index column must used in "order by", otherwise the left indexes will disable. index work like link list.
+
+	最佳左前缀原则。不在索引加任何操作， 范围放最后， 覆盖索引尽量用， 不等于慎用， Null 有影响， Like要当心， 字符类型加引号。
+       
+  
+      
