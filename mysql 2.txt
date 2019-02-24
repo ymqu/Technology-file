@@ -1,0 +1,61 @@
+Mysql + keeplived:
+
+	KeepLived: active-active: MQ and redis cluster use it. it is software for switch layer, use for checking server status. 
+	Keeplived will generate virtual IP for outside usage. if one of servers fallover, keeplived will redirect to lived server. (Rerouting) 
+
+	HAProxy: load balancing.  function like nginx if it can work on networking layer 4.
+
+	Keeplived + HAProxy:   keeplived connect to HAProxy, then HAProxy balance to master/slave database server.  but implement script is complicate, please visit:
+
+	Bidirection master/slave:  A-->B and B-->A, assume A is master, B acts as master and slave
+		so in my.cnf file add "logs-slave-updates" on B  ----- means A and B must contain binlog. Normally, binlog only store at master server if B only acts slave.
+		When the sharding needed:
+	Data over 5000 thousands for a table ,shard table; if database, IO,CPU reach limitation, separate database.
+
+How to fetch sharding data:
+
+	client sharding: application level;  custom JDBC; or  custom ORM; In project, based on Time separate tables is normal
+
+	proxy: Mycat: increase network data tranfer. ShardingJDBC, ShardingProxy.: provide transaction, data sharding etc. Google Vitess open source.
+
+How to sharding data
+
+	vertical table sharding:  route; transaction; How to generate sharding key:  based on Hash sharding, such as ID%#; or hash(username) = int %#, data evenly;  or TIME, 
+	hizontal table sharding: focus on services separator
+		1. result merge
+		2.data redundant
+		3.search engine. es or solr or lucent
+
+Mycat:
+	native and jdbc.  support: MySQL, SQL Server, Oracle, DB2, PostgreSQL and also MongoDB etc.
+	process: intercept request, then analysis sharding, routing, memory., then forward to destination.
+
+mycat schema:
+	table:  sharding table, non sharding table, ER table:  Fllowing£» global table.
+	dataNode:
+	dataHost:
+	rule:
+	sequence: zk, snowflake to assure distributor id unique.
+	database implement: batch fetch id, generate 1000 every time by services. user CAS lock.
+
+Google Vitess:
+
+what is Viteness:
+	Query routing: Transparent sharding,  Cross-shard joins; DB compliant APIs.  
+	Sharding:
+	Cluster management:	
+
+
+One Master two replica : simple, read scaling, durability, uptime, reparents& offline backups. but write scaling, data size.
+Masters with shard1..n / Replicas with replicas1..n:  read and write scaling, data size, but transactions, cross-shard queries, fat client. When data grow: cluster management, worldwide latency, DR 
+Planet scale: Masters with shard1..n / Replicas cell1(with replica1..n), Replicas cell2, Replicas cell3:  DR, worldwide latency, but cluster management, Resharding, get worse overtime
+
+Use Viteness:
+	Connection pooling: queries, transactions, streaming;
+	results reuse
+	Query rewrites:makes SBR as efficient as RBR.
+	protection: Result limit; Query and transaction time limits; Blacklisting; ACLs
+	Troubleshooting:  
+	Big Data: Streaming API, upate Stream, Map-Reduce API
+	Resharding: Vertical, Horizontal:split, merges; Zero downtime; Large scale; across multiple data centers;
+	Cluster Management: Rerouting of queries; Follow master; Load balancing; Backups & Restores; Replication&Reparenting; Zookeeper;
